@@ -30,9 +30,8 @@ CREATE OR REPLACE TRIGGER trg_review_audit_insert
 AFTER INSERT ON REVIEWS
 FOR EACH ROW
 DECLARE
-    v_prev_hash   VARCHAR2(64);
-    v_raw_hash    RAW(32);
-    v_new_hash    VARCHAR2(64);
+    v_prev_hash VARCHAR2(64);
+    v_new_hash  VARCHAR2(64);
 BEGIN
     -- Get previous hash
     BEGIN
@@ -49,20 +48,18 @@ BEGIN
             v_prev_hash := 'GENESIS';
     END;
 
-    -- Generate SHA256 hash using DBMS_CRYPTO
-    v_raw_hash := DBMS_CRYPTO.HASH(
-        UTL_RAW.CAST_TO_RAW(
-            :NEW.review_id ||
-            :NEW.submission_id ||
-            :NEW.reviewer_token ||
-            v_prev_hash
-        ),
-        DBMS_CRYPTO.HASH_SH256
-    );
+    -- Generate SHA256 using SQL function
+    SELECT STANDARD_HASH(
+        :NEW.review_id ||
+        :NEW.submission_id ||
+        :NEW.reviewer_token ||
+        v_prev_hash,
+        'SHA256'
+    )
+    INTO v_new_hash
+    FROM dual;
 
-    v_new_hash := RAWTOHEX(v_raw_hash);
-
-    -- Insert into audit log
+    -- Insert audit record
     INSERT INTO AUDIT_LOG (
         actor_token,
         action_type,
@@ -83,18 +80,16 @@ END;
 
 CREATE OR REPLACE TRIGGER trg_auto_consensus
 AFTER INSERT ON REVIEWS
-FOR EACH ROW
 DECLARE
-    v_count NUMBER;
 BEGIN
-    -- Check if at least 2 reviews exist
-    SELECT COUNT(*)
-    INTO v_count
-    FROM REVIEWS
-    WHERE submission_id = :NEW.submission_id;
-
-    IF v_count >= 2 THEN
-        analyze_submission_consensus(:NEW.submission_id);
-    END IF;
+    -- Recalculate for all submissions affected
+    FOR rec IN (
+        SELECT DISTINCT submission_id
+        FROM REVIEWS
+        WHERE submission_id IS NOT NULL
+    )
+    LOOP
+        analyze_submission_consensus(rec.submission_id);
+    END LOOP;
 END;
 /
