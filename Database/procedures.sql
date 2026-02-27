@@ -34,6 +34,9 @@ BEGIN
     FROM REVIEWS r
     WHERE r.submission_id = p_submission_id;
 
+    -- Fix: STDDEV can be NULL if all ratings identical
+    v_stddev_rating := NVL(v_stddev_rating, 0);
+
     --------------------------------------------------
     -- 3. Trust-weighted calculation
     --------------------------------------------------
@@ -52,7 +55,7 @@ BEGIN
     END IF;
 
     --------------------------------------------------
-    -- 4. Classification logic
+    -- 4. Determine consensus
     --------------------------------------------------
     IF v_stddev_rating <= 1 THEN
         v_status := 'CONSENSUS';
@@ -92,13 +95,62 @@ BEGIN
         );
 
     --------------------------------------------------
-    -- 6. Update submission status
+    -- 6. Escalation Logic
+    --------------------------------------------------
+    IF v_status = 'CONFLICT' THEN
+
+        MERGE INTO CONFLICT_ESCALATION ce
+        USING (SELECT p_submission_id AS submission_id FROM dual) src
+        ON (ce.submission_id = src.submission_id)
+        WHEN MATCHED THEN
+            UPDATE SET
+                escalation_level = escalation_level + 1,
+                escalated_at     = SYSTIMESTAMP
+        WHEN NOT MATCHED THEN
+            INSERT (
+                submission_id,
+                escalation_level,
+                status,
+                escalated_at
+            )
+            VALUES (
+                p_submission_id,
+                1,
+                'PENDING',
+                SYSTIMESTAMP
+            );
+
+    ELSE
+        -- Reset escalation if consensus achieved
+        DELETE FROM CONFLICT_ESCALATION
+        WHERE submission_id = p_submission_id;
+
+    END IF;
+
+    --------------------------------------------------
+    -- 7. Update Submission Status Safely
     --------------------------------------------------
     UPDATE CODE_SUBMISSIONS
-    SET status = v_status
+    SET status =
+        CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM CONFLICT_ESCALATION
+                WHERE submission_id = p_submission_id
+                AND escalation_level >= 3
+            )
+            THEN 'LOCKED'
+            ELSE v_status
+        END
     WHERE submission_id = p_submission_id;
-    -- Bias Detection  after consensus
-    detect_bias_and_adjust_trust(p_submission_id);
+
+    --------------------------------------------------
+    -- 8. Bias Detection (only if not locked)
+    --------------------------------------------------
+    IF v_status != 'LOCKED' THEN
+        detect_bias_and_adjust_trust(p_submission_id);
+    END IF;
+
 END;
 /
 
@@ -110,11 +162,10 @@ BEGIN
     SET trust_score =
         trust_score * EXP(
             -v_lambda *
-            (SYSDATE - last_updated)
+            (SYSDATE - CAST(last_updated AS DATE))
         ),
-        last_updated = SYSDATE;
+        last_updated = SYSTIMESTAMP;
 
-    COMMIT;
 END;
 /
 
@@ -123,9 +174,8 @@ CREATE OR REPLACE PROCEDURE detect_bias_and_adjust_trust (
 )
 IS
     v_weighted_score NUMBER;
-    v_threshold      CONSTANT NUMBER := 1.5;
+    v_deviation      NUMBER;
 BEGIN
-    -- Get weighted consensus score
     SELECT weighted_score
     INTO v_weighted_score
     FROM REVIEW_ANALYSIS
@@ -137,27 +187,57 @@ BEGIN
         WHERE submission_id = p_submission_id
     )
     LOOP
-        IF ABS(rec.rating - v_weighted_score) > v_threshold THEN
+        v_deviation := ABS(rec.rating - v_weighted_score);
 
-            -- Mark as biased
-            UPDATE REVIEWS
-            SET bias_flag = 'YES'
-            WHERE review_id = rec.review_id;
+        IF v_deviation <= 0.5 THEN
 
-            -- Reduce trust score (10% penalty)
+            -- Strong alignment reward (+5%)
             UPDATE TRUST_SCORES
-            SET trust_score = trust_score * 0.9,
-                last_updated = SYSDATE
+            SET trust_score = trust_score * 1.05,
+                last_updated = SYSTIMESTAMP
             WHERE token_id = rec.reviewer_token;
 
-        ELSE
-            -- Mark as aligned
             UPDATE REVIEWS
-            SET bias_flag = 'NO'
+            SET bias_flag = 'ALIGNED'
             WHERE review_id = rec.review_id;
+
+        ELSIF v_deviation > 1.5 THEN
+
+            -- Strong bias penalty (-10%)
+            UPDATE TRUST_SCORES
+            SET trust_score = trust_score * 0.9,
+                last_updated = SYSTIMESTAMP
+            WHERE token_id = rec.reviewer_token;
+
+            UPDATE REVIEWS
+            SET bias_flag = 'BIASED'
+            WHERE review_id = rec.review_id;
+
+        ELSE
+
+            UPDATE REVIEWS
+            SET bias_flag = 'NEUTRAL'
+            WHERE review_id = rec.review_id;
+
         END IF;
 
     END LOOP;
 
+END;
+/
+
+CREATE OR REPLACE PROCEDURE resolve_conflict (
+    p_submission_id IN NUMBER
+)
+IS
+BEGIN
+    UPDATE CONFLICT_ESCALATION
+    SET status = 'RESOLVED',
+        resolved_at = SYSTIMESTAMP
+    WHERE submission_id = p_submission_id;
+
+    UPDATE CODE_SUBMISSIONS
+    SET status = 'RESOLVED'
+    WHERE submission_id = p_submission_id;
 END;
 /
