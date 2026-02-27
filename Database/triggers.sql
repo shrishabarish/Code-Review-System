@@ -86,3 +86,23 @@ BEGIN
     END LOOP;
 END;
 /
+
+CREATE OR REPLACE TRIGGER trg_prevent_review_on_locked
+BEFORE INSERT ON REVIEWS
+FOR EACH ROW
+DECLARE
+    v_status VARCHAR2(30);
+BEGIN
+    SELECT status
+    INTO v_status
+    FROM CODE_SUBMISSIONS
+    WHERE submission_id = :NEW.submission_id;
+
+    IF v_status = 'LOCKED' THEN
+        RAISE_APPLICATION_ERROR(
+            -20010,
+            'Submission is locked due to repeated conflicts.'
+        );
+    END IF;
+END;
+/
