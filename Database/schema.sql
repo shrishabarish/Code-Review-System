@@ -78,3 +78,6 @@ CREATE TABLE TRUST_SCORES (
         FOREIGN KEY (token_id)
         REFERENCES USER_TOKENS(token_id)
 );
+
+ALTER TABLE REVIEWS
+ADD bias_flag VARCHAR2(10);

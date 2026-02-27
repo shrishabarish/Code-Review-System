@@ -97,7 +97,8 @@ BEGIN
     UPDATE CODE_SUBMISSIONS
     SET status = v_status
     WHERE submission_id = p_submission_id;
-
+    -- Bias Detection  after consensus
+    detect_bias_and_adjust_trust(p_submission_id);
 END;
 /
 
@@ -114,5 +115,49 @@ BEGIN
         last_updated = SYSDATE;
 
     COMMIT;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE detect_bias_and_adjust_trust (
+    p_submission_id IN NUMBER
+)
+IS
+    v_weighted_score NUMBER;
+    v_threshold      CONSTANT NUMBER := 1.5;
+BEGIN
+    -- Get weighted consensus score
+    SELECT weighted_score
+    INTO v_weighted_score
+    FROM REVIEW_ANALYSIS
+    WHERE submission_id = p_submission_id;
+
+    FOR rec IN (
+        SELECT review_id, reviewer_token, rating
+        FROM REVIEWS
+        WHERE submission_id = p_submission_id
+    )
+    LOOP
+        IF ABS(rec.rating - v_weighted_score) > v_threshold THEN
+
+            -- Mark as biased
+            UPDATE REVIEWS
+            SET bias_flag = 'YES'
+            WHERE review_id = rec.review_id;
+
+            -- Reduce trust score (10% penalty)
+            UPDATE TRUST_SCORES
+            SET trust_score = trust_score * 0.9,
+                last_updated = SYSDATE
+            WHERE token_id = rec.reviewer_token;
+
+        ELSE
+            -- Mark as aligned
+            UPDATE REVIEWS
+            SET bias_flag = 'NO'
+            WHERE review_id = rec.review_id;
+        END IF;
+
+    END LOOP;
+
 END;
 /
