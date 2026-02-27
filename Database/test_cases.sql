@@ -76,3 +76,8 @@ SELECT submission_id, status FROM CODE_SUBMISSIONS;
 SELECT log_id, hash_value, previous_hash
 FROM AUDIT_LOG
 ORDER BY log_id;
+
+BEGIN
+    apply_reputation_decay;
+END;
+/
