@@ -100,3 +100,19 @@ BEGIN
 
 END;
 /
+
+CREATE OR REPLACE PROCEDURE apply_reputation_decay
+IS
+    v_lambda CONSTANT NUMBER := 0.02;
+BEGIN
+    UPDATE TRUST_SCORES
+    SET trust_score =
+        trust_score * EXP(
+            -v_lambda *
+            (SYSDATE - last_updated)
+        ),
+        last_updated = SYSDATE;
+
+    COMMIT;
+END;
+/
