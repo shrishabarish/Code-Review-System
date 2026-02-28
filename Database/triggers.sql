@@ -73,17 +73,9 @@ END;
 
 CREATE OR REPLACE TRIGGER trg_auto_consensus
 AFTER INSERT ON REVIEWS
-DECLARE
+FOR EACH ROW
 BEGIN
-    -- Recalculate for all submissions affected
-    FOR rec IN (
-        SELECT DISTINCT submission_id
-        FROM REVIEWS
-        WHERE submission_id IS NOT NULL
-    )
-    LOOP
-        analyze_submission_consensus(rec.submission_id);
-    END LOOP;
+    analyze_submission_consensus(:NEW.submission_id);
 END;
 /
 
