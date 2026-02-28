@@ -81,3 +81,7 @@ BEGIN
     apply_reputation_decay;
 END;
 /
+
+DROP TRIGGER trg_auto_consensus;
+/
+SHOW ERRORS TRIGGER trg_auto_consensus;

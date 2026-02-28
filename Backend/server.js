@@ -38,8 +38,11 @@ app.get("/test-db", async (req, res) => {
 app.use("/api/auth", authRoutes);
 
 const submissionRoutes = require("./routes/submissions");
-
 app.use("/api/submissions", submissionRoutes);
+
+const reviewRoutes = require("./routes/reviews");
+app.use("/api/reviews", reviewRoutes);
+
 
 // Start Server (ALWAYS LAST)
 app.listen(PORT, () => {
