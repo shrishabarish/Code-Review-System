@@ -73,9 +73,15 @@ END;
 
 CREATE OR REPLACE TRIGGER trg_auto_consensus
 AFTER INSERT ON REVIEWS
-FOR EACH ROW
 BEGIN
-    analyze_submission_consensus(:NEW.submission_id);
+    FOR rec IN (
+        SELECT DISTINCT submission_id
+        FROM REVIEWS
+        WHERE submission_id IS NOT NULL
+    )
+    LOOP
+        analyze_submission_consensus(rec.submission_id);
+    END LOOP;
 END;
 /
 
@@ -85,10 +91,18 @@ FOR EACH ROW
 DECLARE
     v_status VARCHAR2(30);
 BEGIN
-    SELECT status
-    INTO v_status
-    FROM CODE_SUBMISSIONS
-    WHERE submission_id = :NEW.submission_id;
+    BEGIN
+        SELECT status
+        INTO v_status
+        FROM CODE_SUBMISSIONS
+        WHERE submission_id = :NEW.submission_id;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(
+                -20011,
+                'Submission does not exist.'
+            );
+    END;
 
     IF v_status = 'LOCKED' THEN
         RAISE_APPLICATION_ERROR(
