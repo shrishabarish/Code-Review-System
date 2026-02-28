@@ -89,3 +89,95 @@ exports.getAnalysis = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch analysis" });
     }
 };
+
+exports.getAllSubmissions = async (req, res) => {
+    try {
+        const connection = await db.getConnection();
+
+        const result = await connection.execute(
+            `SELECT 
+                s.submission_id,
+                s.title,
+                s.status,
+                ra.avg_rating,
+                ra.consensus_status
+             FROM CODE_SUBMISSIONS s
+             LEFT JOIN REVIEW_ANALYSIS ra
+               ON s.submission_id = ra.submission_id
+             ORDER BY s.submission_id DESC`
+        );
+
+        await connection.close();
+
+        const submissions = result.rows.map(row => ({
+            submission_id: row[0],
+            title: row[1],
+            status: row[2],
+            avg_rating: row[3],
+            consensus_status: row[4]
+        }));
+
+        res.json(submissions);
+
+    } catch (err) {
+        console.error("GET SUBMISSIONS ERROR:", err);
+        res.status(500).json({ message: "Failed to fetch submissions" });
+    }
+};
+
+exports.resolveConflict = async (req, res) => {
+    const submissionId = req.params.id;
+
+    try {
+        const connection = await db.getConnection();
+
+        await connection.execute(
+            `BEGIN
+                resolve_conflict(:id);
+             END;`,
+            { id: submissionId },
+            { autoCommit: true }
+        );
+
+        await connection.close();
+
+        res.json({
+            message: "Conflict resolved successfully",
+            submission_id: submissionId
+        });
+
+    } catch (err) {
+        console.error("RESOLVE ERROR:", err);
+        res.status(500).json({ message: "Failed to resolve conflict" });
+    }
+};
+
+exports.getTrustScores = async (req, res) => {
+    try {
+        const connection = await db.getConnection();
+
+        const result = await connection.execute(
+            `SELECT 
+                token_id,
+                trust_score,
+                last_updated
+             FROM TRUST_SCORES
+             ORDER BY trust_score DESC`
+        );
+
+        await connection.close();
+
+        const scores = result.rows.map(row => ({
+            token_id: row[0],
+            trust_score: row[1],
+            last_updated: row[2]
+        }));
+
+        res.json(scores);
+
+    } catch (err) {
+        console.error("GET TRUST SCORES ERROR:", err);
+        res.status(500).json({ message: "Failed to fetch trust scores" });
+    }
+};
+

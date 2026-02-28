@@ -37,13 +37,14 @@ exports.register = async (req, res) => {
 
         // Insert into USERS_REAL
         const result = await connection.execute(
-            `INSERT INTO USERS_REAL (full_name, email, password_hash)
-             VALUES (:full_name, :email, :password_hash)
+            `INSERT INTO USERS_REAL (full_name, email, password_hash,role)
+             VALUES (:full_name, :email, :password_hash,:role)
              RETURNING user_id INTO :user_id`,
             {
                 full_name,
                 email,
                 password_hash: hashedPassword,
+                role:"USER",
                 user_id: {
                     dir: oracledb.BIND_OUT,
                     type: oracledb.NUMBER
@@ -68,11 +69,21 @@ exports.register = async (req, res) => {
             { autoCommit: true }
         );
 
+            // Insert initial trust score
+await connection.execute(
+    `INSERT INTO TRUST_SCORES (token_id, trust_score, last_updated)
+     VALUES (:token_id, :trust_score, SYSTIMESTAMP)`,
+    {
+        token_id: generatedTokenId,
+        trust_score: 1
+    },
+    { autoCommit: true }
+);
         await connection.close();
 
         // Create JWT
         const jwtToken = jwt.sign(
-            { userId, tokenId: generatedTokenId },
+            { userId, tokenId: generatedTokenId ,role},
             JWT_SECRET,
             { expiresIn: "1d" }
         );
@@ -150,3 +161,5 @@ exports.login = async (req, res) => {
         return res.status(500).json({ message: "Login failed" });
     }
 };
+
+
