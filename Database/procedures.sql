@@ -19,10 +19,7 @@ BEGIN
     WHERE submission_id = p_submission_id;
 
     IF v_review_count < 2 THEN
-        RAISE_APPLICATION_ERROR(
-            -20020,
-            'Not enough reviews to analyze consensus.'
-        );
+        RETURN;
     END IF;
 
     --------------------------------------------------
@@ -182,7 +179,7 @@ BEGIN
     WHERE submission_id = p_submission_id;
 
     FOR rec IN (
-        SELECT review_id, reviewer_token, rating
+        SELECT reviewer_token, rating
         FROM REVIEWS
         WHERE submission_id = p_submission_id
     )
@@ -191,33 +188,17 @@ BEGIN
 
         IF v_deviation <= 0.5 THEN
 
-            -- Strong alignment reward (+5%)
             UPDATE TRUST_SCORES
             SET trust_score = trust_score * 1.05,
                 last_updated = SYSTIMESTAMP
             WHERE token_id = rec.reviewer_token;
 
-            UPDATE REVIEWS
-            SET bias_flag = 'ALIGNED'
-            WHERE review_id = rec.review_id;
-
         ELSIF v_deviation > 1.5 THEN
 
-            -- Strong bias penalty (-10%)
             UPDATE TRUST_SCORES
             SET trust_score = trust_score * 0.9,
                 last_updated = SYSTIMESTAMP
             WHERE token_id = rec.reviewer_token;
-
-            UPDATE REVIEWS
-            SET bias_flag = 'BIASED'
-            WHERE review_id = rec.review_id;
-
-        ELSE
-
-            UPDATE REVIEWS
-            SET bias_flag = 'NEUTRAL'
-            WHERE review_id = rec.review_id;
 
         END IF;
 
