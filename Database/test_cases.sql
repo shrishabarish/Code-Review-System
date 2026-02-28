@@ -85,3 +85,5 @@ END;
 DROP TRIGGER trg_auto_consensus;
 /
 SHOW ERRORS TRIGGER trg_auto_consensus;
+
+SELECT * FROM TRUST_SCORES;
