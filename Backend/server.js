@@ -43,6 +43,7 @@ app.use("/api/submissions", submissionRoutes);
 const reviewRoutes = require("./routes/reviews");
 app.use("/api/reviews", reviewRoutes);
 
+app.use(express.json());
 
 // Start Server (ALWAYS LAST)
 app.listen(PORT, () => {

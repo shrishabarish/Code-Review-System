@@ -90,10 +90,13 @@ BEFORE INSERT ON REVIEWS
 FOR EACH ROW
 DECLARE
     v_status VARCHAR2(30);
+    v_submission_token VARCHAR2(64);
+    v_count NUMBER;
 BEGIN
+    -- 1. Check submission exists + get status + owner token
     BEGIN
-        SELECT status
-        INTO v_status
+        SELECT status, token_id
+        INTO v_status, v_submission_token
         FROM CODE_SUBMISSIONS
         WHERE submission_id = :NEW.submission_id;
     EXCEPTION
@@ -104,11 +107,44 @@ BEGIN
             );
     END;
 
+    -- 2. Prevent self-review
+    IF v_submission_token = :NEW.reviewer_token THEN
+        RAISE_APPLICATION_ERROR(
+            -20012,
+            'You cannot review your own submission.'
+        );
+    END IF;
+
+    -- 3. Check reviewer assignment (bias prevention)
+    SELECT COUNT(*)
+    INTO v_count
+    FROM REVIEW_ASSIGNMENTS
+    WHERE submission_id = :NEW.submission_id
+    AND reviewer_token = :NEW.reviewer_token
+    AND status = 'PENDING';
+
+    IF v_count = 0 THEN
+        RAISE_APPLICATION_ERROR(
+            -20013,
+            'You are not assigned to review this submission.'
+        );
+    END IF;
+
+    -- 4. Prevent review if submission is locked
     IF v_status = 'LOCKED' THEN
         RAISE_APPLICATION_ERROR(
             -20010,
             'Submission is locked due to repeated conflicts.'
         );
     END IF;
+
+END;
+/
+
+CREATE OR REPLACE TRIGGER trg_auto_consensus
+AFTER INSERT ON REVIEWS
+FOR EACH ROW
+BEGIN
+    analyze_submission_consensus(:NEW.submission_id);
 END;
 /

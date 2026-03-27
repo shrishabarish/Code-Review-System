@@ -83,7 +83,7 @@ await connection.execute(
 
         // Create JWT
         const jwtToken = jwt.sign(
-            { userId, tokenId: generatedTokenId ,role},
+            { userId, tokenId: generatedTokenId ,role:"USER"},
             JWT_SECRET,
             { expiresIn: "1d" }
         );

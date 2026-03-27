@@ -87,3 +87,7 @@ DROP TRIGGER trg_auto_consensus;
 SHOW ERRORS TRIGGER trg_auto_consensus;
 
 SELECT * FROM TRUST_SCORES;
+
+select * from USERS_REAL;
+
+SELECT * FROM USERS_REAL WHERE email = 'demo@test.com';
