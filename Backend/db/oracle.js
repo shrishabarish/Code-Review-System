@@ -1,5 +1,4 @@
 const oracledb = require("oracledb");
-
 async function getConnection() {
   try {
     return await oracledb.getConnection({
@@ -12,6 +11,5 @@ async function getConnection() {
     throw err;
   }
 }
-
 module.exports = { getConnection };
 
