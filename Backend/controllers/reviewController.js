@@ -1,19 +1,15 @@
 const db = require("../db/oracle");
 const oracledb = require("oracledb");
 const logEvent = require("../utils/logger");
-
 exports.createReview = async (req, res) => {
   let connection;
   try {
     const { submission_id, rating, comments } = req.body;
-
     if (!submission_id || !rating) {
       return res.status(400).json({ message: "submission_id and rating required" });
     }
-
     const reviewerToken = req.user.tokenId;
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `INSERT INTO REVIEWS (submission_id, reviewer_token, rating, comments)
        VALUES (:submission_id, :reviewer_token, :rating, :comments)
@@ -27,9 +23,7 @@ exports.createReview = async (req, res) => {
       },
       { autoCommit: false }
     );
-
     const reviewId = result.outBinds.review_id[0];
-
     await connection.execute(
       `BEGIN analyze_submission_consensus(:id); END;`,
       { id: submission_id }
@@ -41,10 +35,7 @@ exports.createReview = async (req, res) => {
        WHERE submission_id = :sid AND reviewer_token = :token`,
       { sid: submission_id, token: reviewerToken }
     );
-
     await connection.commit();
-
-    // ✅ 🔥 LOGGING ADDED HERE (AFTER SUCCESS)
     await logEvent({
       userId: reviewerToken,
       action: "ADD_REVIEW",
@@ -55,20 +46,16 @@ exports.createReview = async (req, res) => {
         reviewId
       }
     });
-
     return res.status(201).json({
       message: "Review submitted successfully",
       reviewId
     });
-
   } catch (err) {
     console.error("CREATE REVIEW ERROR:", err);
 
     if (connection) {
       try { await connection.rollback(); } catch (e) {}
     }
-
-    // ✅ OPTIONAL: FAILURE LOG (STRONG FEATURE)
     await logEvent({
       userId: req.user?.tokenId || "UNKNOWN",
       action: "ADD_REVIEW_FAILED",
@@ -78,28 +65,23 @@ exports.createReview = async (req, res) => {
         error: err.message
       }
     });
-
     if (err.errorNum) {
       return res.status(400).json({ message: err.message });
     }
 
     return res.status(500).json({ message: "Review failed" });
-
   } finally {
     if (connection) {
       try { await connection.close(); } catch (e) {}
     }
   }
 };
-
-
-// ================= GET REVIEWABLE SUBMISSIONS =================
+//REVIEWABLE SUBMISSIONS
 exports.getReviewableSubmissions = async (req, res) => {
   let connection;
   try {
     const reviewerToken = req.user.tokenId;
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `SELECT
           cs.submission_id,
@@ -120,9 +102,7 @@ exports.getReviewableSubmissions = async (req, res) => {
       { reviewer_token: reviewerToken },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return res.status(200).json({ submissions: result.rows });
-
   } catch (err) {
     console.error("GET REVIEWABLE SUBMISSIONS ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch reviewable submissions" });
@@ -132,15 +112,12 @@ exports.getReviewableSubmissions = async (req, res) => {
     }
   }
 };
-
-
-// ================= GET ASSIGNED REVIEWS =================
+// ASSIGNED REVIEWS
 exports.getAssignedReviews = async (req, res) => {
   let connection;
   try {
     const reviewerToken = req.user.tokenId;
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `SELECT
           ra.assignment_id,
@@ -157,9 +134,7 @@ exports.getAssignedReviews = async (req, res) => {
       { token: reviewerToken },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return res.status(200).json({ assignedReviews: result.rows });
-
   } catch (err) {
     console.error("GET ASSIGNED REVIEWS ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch assigned reviews" });
