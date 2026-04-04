@@ -1,39 +1,39 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
 
 const submissionController = require("../controllers/submissionController");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
-// Anyone logged in can see trust scores
-router.get("/trust-scores",
-    authMiddleware,
-    submissionController.getTrustScores
+router.get("/trust-scores", authMiddleware, submissionController.getTrustScores);
+
+router.get("/my-stats", authMiddleware, submissionController.getMyStats);
+
+router.get("/", authMiddleware, submissionController.getAllSubmissions);
+
+router.get("/:id/analysis", authMiddleware, submissionController.getAnalysis);
+
+router.get("/:id", authMiddleware, submissionController.getSubmissionById);
+
+router.post(
+  "/:id/resolve",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  submissionController.resolveConflict
 );
 
-// Anyone logged in can see submissions
-router.get("/",
-    authMiddleware,
-    submissionController.getAllSubmissions
-);
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+const upload = multer({ storage });
 
-// Anyone logged in can view analysis
-router.get("/:id/analysis",
-    authMiddleware,
-    submissionController.getAnalysis
-);
-
-// Only ADMIN can resolve conflicts
-router.post("/:id/resolve",
-    authMiddleware,
-    roleMiddleware("ADMIN"),
-    submissionController.resolveConflict
-);
-
-// Anyone logged in can create submission
-router.post("/",
-    authMiddleware,
-    submissionController.createSubmission
+router.post(
+  "/",
+  authMiddleware,
+  upload.array("files"),
+  submissionController.createSubmission
 );
 
 module.exports = router;
