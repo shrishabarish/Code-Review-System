@@ -1,20 +1,16 @@
 const db = require("../db/oracle");
 const oracledb = require("oracledb");
 const logEvent = require("../utils/logger");
-
-// ================= CREATE SUBMISSION =================
+//CREATE SUBMISSION 
 const createSubmission = async (req, res) => {
   let connection;
   try {
     const { title, description, language, code } = req.body;
-
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
     }
-
     const tokenId = req.user.tokenId;
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `INSERT INTO CODE_SUBMISSIONS (token_id, title, description, language, code)
        VALUES (:token_id, :title, :description, :language, :code)
@@ -29,9 +25,7 @@ const createSubmission = async (req, res) => {
       },
       { autoCommit: false }
     );
-
     const submissionId = result.outBinds.submission_id[0];
-
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         await connection.execute(
@@ -41,10 +35,7 @@ const createSubmission = async (req, res) => {
         );
       }
     }
-
     await connection.commit();
-
-    // ✅ 🔥 LOGGING ADDED HERE (AFTER SUCCESS)
     await logEvent({
       userId: tokenId,
       action: "CREATE_SUBMISSION",
@@ -54,18 +45,13 @@ const createSubmission = async (req, res) => {
         title
       }
     });
-
     return res.status(201).json({
       message: "Submission created successfully",
       submissionId,
     });
-
   } catch (err) {
     console.error("CREATE SUBMISSION ERROR:", err);
-
     if (connection) await connection.rollback();
-
-    // ✅ 🔥 FAILURE LOG (ADVANCED)
     await logEvent({
       userId: req.user?.tokenId || "UNKNOWN",
       action: "CREATE_SUBMISSION_FAILED",
@@ -75,21 +61,17 @@ const createSubmission = async (req, res) => {
         error: err.message
       }
     });
-
     return res.status(500).json({ message: "Submission failed" });
-
   } finally {
     if (connection) await connection.close();
   }
 };
-
-// ================= GET ANALYSIS =================
+//GET ANALYSIS 
 const getAnalysis = async (req, res) => {
   let connection;
   try {
     const submissionId = req.params.id;
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `SELECT submission_id, avg_rating, rating_stddev,
               weighted_score, consensus_status, analyzed_at
@@ -98,30 +80,23 @@ const getAnalysis = async (req, res) => {
       { id: submissionId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "No analysis available yet" });
     }
-
     return res.json(result.rows[0]);
-
   } catch (err) {
     console.error("GET ANALYSIS ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch analysis" });
-
   } finally {
     if (connection) await connection.close();
   }
 };
-
-// ================= GET SUBMISSION BY ID (CRITICAL FIX) =================
+// GET SUBMISSION BY ID
 const getSubmissionById = async (req, res) => {
   let connection;
-
   try {
     const id = parseInt(req.params.id, 10);
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `SELECT submission_id, title, description, language, code, created_at
        FROM CODE_SUBMISSIONS
@@ -129,37 +104,30 @@ const getSubmissionById = async (req, res) => {
       { id },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     if (!result.rows || result.rows.length === 0) {
       return res.status(404).json({ message: "Submission not found" });
     }
 
     const row = result.rows[0];
-
     let codeData = "";
-
     if (row.CODE) {
       if (typeof row.CODE === "string") {
         codeData = row.CODE;
       } else {
         codeData = await new Promise((resolve, reject) => {
           let chunks = [];
-
           row.CODE.on("data", (chunk) => {
             chunks.push(chunk);
           });
-
           row.CODE.on("end", () => {
             resolve(Buffer.concat(chunks).toString("utf8"));
           });
-
           row.CODE.on("error", (err) => {
             reject(err);
           });
         });
       }
     }
-
     return res.json({
       SUBMISSION_ID: row.SUBMISSION_ID,
       TITLE: row.TITLE,
@@ -168,36 +136,30 @@ const getSubmissionById = async (req, res) => {
       CODE: codeData || "",
       CREATED_AT: row.CREATED_AT
     });
-
   } catch (err) {
-    console.error("❌ FINAL ERROR:", err);
+    console.error("FINAL ERROR:", err);
     return res.status(500).json({ message: err.message });
-
   } finally {
     if (connection) {
       try { await connection.close(); } catch (e) {}
     }
   }
 };
-
-// ================= RESOLVE CONFLICT =================
+// RESOLVE CONFLICT
 const resolveConflict = async (req, res) => {
   let connection;
   try {
     const submissionId = req.params.id;
     connection = await db.getConnection();
-
     await connection.execute(
       `BEGIN resolve_conflict(:id); END;`,
       { id: submissionId },
       { autoCommit: true }
     );
-
     return res.json({
       message: "Conflict resolved successfully",
       submission_id: submissionId,
     });
-
   } catch (err) {
     console.error("RESOLVE ERROR:", err);
     return res.status(500).json({ message: "Failed to resolve conflict" });
@@ -206,13 +168,11 @@ const resolveConflict = async (req, res) => {
     if (connection) await connection.close();
   }
 };
-
-// ================= TRUST SCORES =================
+// TRUST SCORES
 const getTrustScores = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `SELECT token_id, trust_score, last_updated
        FROM TRUST_SCORES
@@ -220,9 +180,7 @@ const getTrustScores = async (req, res) => {
       {},
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return res.json(result.rows);
-
   } catch (err) {
     console.error("GET TRUST SCORES ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch trust scores" });
@@ -231,26 +189,22 @@ const getTrustScores = async (req, res) => {
     if (connection) await connection.close();
   }
 };
-
-// ================= USER STATS =================
+// USER STATS
 const getMyStats = async (req, res) => {
   let connection;
   try {
     const tokenId = req.user.tokenId;
     connection = await db.getConnection();
-
     const tsResult = await connection.execute(
       `SELECT trust_score FROM TRUST_SCORES WHERE token_id = :token_id`,
       { token_id: tokenId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     const rvResult = await connection.execute(
       `SELECT COUNT(*) AS total_reviews FROM REVIEWS WHERE reviewer_token = :token_id`,
       { token_id: tokenId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     const subResult = await connection.execute(
       `SELECT cs.status, ra.consensus_status
        FROM CODE_SUBMISSIONS cs
@@ -262,7 +216,6 @@ const getMyStats = async (req, res) => {
       { token_id: tokenId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return res.json({
       trustScore: tsResult.rows[0]?.TRUST_SCORE ?? 0,
       totalReviews: rvResult.rows[0]?.TOTAL_REVIEWS ?? 0,
@@ -271,7 +224,6 @@ const getMyStats = async (req, res) => {
         subResult.rows[0]?.STATUS ||
         "N/A",
     });
-
   } catch (err) {
     console.error("GET MY STATS ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch stats" });
@@ -280,12 +232,10 @@ const getMyStats = async (req, res) => {
     if (connection) await connection.close();
   }
 };
-
 const getAllSubmissions = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
-
     const result = await connection.execute(
       `SELECT submission_id, title, status
        FROM CODE_SUBMISSIONS
@@ -293,9 +243,7 @@ const getAllSubmissions = async (req, res) => {
       {},
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
     return res.json(result.rows);
-
   } catch (err) {
     console.error("GET ALL SUBMISSIONS ERROR:", err);
     return res.status(500).json({ message: "Failed to fetch submissions" });
