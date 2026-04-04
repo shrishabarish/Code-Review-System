@@ -290,7 +290,7 @@ function Landing() {
         <div className="land-card">
           <div className="card-tag">ANON-CR · SECURE REVIEW PLATFORM</div>
  
-          <h1 className="land-title">Anonymous<br />Code Review<br />System</h1>
+          <h1 className="land-title">Secure Collaborative Evaluation Platform</h1>
  
           <p className="land-sub">
             Secure, unbiased peer review using token-based identity,
