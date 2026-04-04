@@ -1,4 +1,4 @@
-
+/*  For Faster retreval of datas in query optimizer*/
 CREATE INDEX idx_submission_token
 ON CODE_SUBMISSIONS(token_id);
 
