@@ -12,10 +12,8 @@ CREATE TABLE USER_TOKENS (
     user_id NUMBER NOT NULL,
     issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     active_flag CHAR(1) DEFAULT 'Y' CHECK (active_flag IN ('Y','N')),
-    CONSTRAINT fk_token_user
-        FOREIGN KEY (user_id)
-        REFERENCES USERS_REAL(user_id)
-        ON DELETE CASCADE
+    CONSTRAINT fk_token_user FOREIGN KEY (user_id) REFERENCES USERS_REAL(user_id)
+    ON DELETE CASCADE
 );
 
 CREATE TABLE CODE_SUBMISSIONS (
@@ -26,9 +24,7 @@ CREATE TABLE CODE_SUBMISSIONS (
     language VARCHAR2(50),
     status VARCHAR2(30) DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_submission_token
-        FOREIGN KEY (token_id)
-        REFERENCES USER_TOKENS(token_id)
+    CONSTRAINT fk_submission_token FOREIGN KEY (token_id) REFERENCES USER_TOKENS(token_id)
 );
 
 CREATE TABLE REVIEWS (
@@ -39,12 +35,10 @@ CREATE TABLE REVIEWS (
     comments CLOB,
     review_hash VARCHAR2(64),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_review_submission
-        FOREIGN KEY (submission_id)
-        REFERENCES CODE_SUBMISSIONS(submission_id),
-    CONSTRAINT fk_review_token
-        FOREIGN KEY (reviewer_token)
-        REFERENCES USER_TOKENS(token_id)
+    CONSTRAINT fk_review_submission FOREIGN KEY (submission_id)
+    REFERENCES CODE_SUBMISSIONS(submission_id),
+    CONSTRAINT fk_review_token FOREIGN KEY (reviewer_token)
+    REFERENCES USER_TOKENS(token_id)
 );
 
 CREATE TABLE AUDIT_LOG (
@@ -65,18 +59,14 @@ CREATE TABLE REVIEW_ANALYSIS (
     weighted_score NUMBER,
     consensus_status VARCHAR2(30),
     analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_analysis_submission
-        FOREIGN KEY (submission_id)
-        REFERENCES CODE_SUBMISSIONS(submission_id)
+    CONSTRAINT fk_analysis_submission FOREIGN KEY (submission_id) REFERENCES CODE_SUBMISSIONS(submission_id)
 );
 
 CREATE TABLE TRUST_SCORES (
     token_id VARCHAR2(64) PRIMARY KEY,
     trust_score NUMBER DEFAULT 0,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_trust_token
-        FOREIGN KEY (token_id)
-        REFERENCES USER_TOKENS(token_id)
+    CONSTRAINT fk_trust_token FOREIGN KEY (token_id) REFERENCES USER_TOKENS(token_id)
 );
 
 ALTER TABLE REVIEWS
@@ -89,9 +79,8 @@ CREATE TABLE CONFLICT_ESCALATION (
     status VARCHAR2(20) DEFAULT 'PENDING',
     escalated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     resolved_at TIMESTAMP,
-    CONSTRAINT fk_escalation_submission
-        FOREIGN KEY (submission_id)
-        REFERENCES CODE_SUBMISSIONS(submission_id)
+    CONSTRAINT fk_escalation_submission FOREIGN KEY (submission_id)
+    REFERENCES CODE_SUBMISSIONS(submission_id)
 );
 
 ALTER TABLE CODE_SUBMISSIONS
@@ -106,9 +95,8 @@ CREATE TABLE SUBMISSION_FILES (
     submission_id NUMBER,
     file_path VARCHAR2(500),
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_file_submission
-        FOREIGN KEY (submission_id)
-        REFERENCES CODE_SUBMISSIONS(submission_id)
+    CONSTRAINT fk_file_submission FOREIGN KEY (submission_id)
+    REFERENCES CODE_SUBMISSIONS(submission_id)
 );
 
 CREATE TABLE REVIEW_ASSIGNMENTS (
@@ -117,10 +105,9 @@ CREATE TABLE REVIEW_ASSIGNMENTS (
     reviewer_token VARCHAR2(64) NOT NULL,
     status VARCHAR2(20) DEFAULT 'PENDING',
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_assign_submission
-        FOREIGN KEY (submission_id)
-        REFERENCES CODE_SUBMISSIONS(submission_id),
-    CONSTRAINT fk_assign_token
-        FOREIGN KEY (reviewer_token)
-        REFERENCES USER_TOKENS(token_id)
+    CONSTRAINT fk_assign_submission FOREIGN KEY (submission_id)
+    REFERENCES CODE_SUBMISSIONS(submission_id),
+    CONSTRAINT fk_assign_token FOREIGN KEY (reviewer_token)
+    REFERENCES USER_TOKENS(token_id)
 );
+
