@@ -1,0 +1,186 @@
+:root {
+  --header-h: 60px;
+  --footer-h: 110px;
+  --gap: 16px;
+
+  --bg: #0a0a0f;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #94a3b8;
+  --text-h: #e2e8f0;
+
+  --accent: #818cf8;
+  --accent-bg: rgba(129, 140, 248, 0.1);
+  --accent-border: rgba(129, 140, 248, 0.3);
+}
+
+/* RESET */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  font-family: 'DM Mono', monospace;
+  overflow: hidden;
+}
+
+/* MAIN LAYOUT */
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+.app-header {
+  height: var(--header-h);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 10;
+}
+
+/* MAIN CONTENT */
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;   /* IMPORTANT FIX */
+  overflow-x: hidden;
+}
+
+/* FOOTER */
+.app-footer {
+  height: var(--footer-h);
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+}
+
+/* CENTER CONTENT (used in landing/dashboard) */
+#center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap);
+  padding: 20px;
+  text-align: center;
+  overflow-y: auto;
+}
+
+/* HERO SECTION */
+.hero {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero .base {
+  width: 120px;
+}
+
+.hero .framework,
+.hero .vite {
+  display: none;
+}
+
+/* COUNTER */
+.counter {
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+}
+
+/* NEXT STEPS SECTION */
+#next-steps {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+#next-steps > div {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+}
+
+#next-steps ul {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+#next-steps ul a {
+  font-size: 12px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--text-h);
+  transition: 0.2s ease;
+}
+
+#next-steps ul a:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+
+/* REMOVE UNUSED DEFAULT STUFF */
+#spacer,
+.ticks {
+  display: none;
+}
+
+/* SCROLLBAR (optional but clean UI) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+
+  .app-footer {
+    height: auto;
+    flex-direction: column;
+  }
+
+  #next-steps {
+    flex-direction: column;
+  }
+
+  #docs {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #center {
+    justify-content: flex-start;
+    padding-top: 20px;
+  }
+}

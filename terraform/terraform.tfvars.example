@@ -1,0 +1,8 @@
+aws_region        = "us-east-1"
+environment       = "staging"
+vpc_cidr          = "10.0.0.0/16"
+db_name           = "codereview"
+db_username       = "dbadmin"
+db_password       = "ReplaceWithStrongPassword123!"
+db_instance_class = "db.t4g.micro"
+app_port          = 5000
